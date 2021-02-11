@@ -527,9 +527,9 @@ class LlvmIrParser(RecursiveDescentParser):
             "lshr",
             "ashr",
         ]:
-            instruction = self.parse_arithmatic()
+            instruction = self.parse_arithmetic()
         elif self.peek in ["and", "or"]:
-            instruction = self.parse_arithmatic()
+            instruction = self.parse_arithmetic()
         elif self.peek in [
             "sext",
             "zext",
@@ -553,7 +553,7 @@ class LlvmIrParser(RecursiveDescentParser):
             self.not_impl()
         return instruction
 
-    def parse_arithmatic(self):
+    def parse_arithmetic(self):
         op = self.consume().val
         lhs = self.parse_type_and_value()
         self.consume(",")

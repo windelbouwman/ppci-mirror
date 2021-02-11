@@ -67,7 +67,7 @@ class CodeGenerator:
             ir_ins = self.emit(ir.Alloc(name, amount))
             self.val_map[instruction] = ir_ins
         elif isinstance(instruction, nodes.GetElementPtrInst):
-            # Implement arithmatic here!
+            # Implement arithmetic here!
             ir_ins = self.get_val(instruction.ptr)
             print(instruction.indices)
             # raise NotImplementedError(str(instruction))
