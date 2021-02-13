@@ -18,7 +18,16 @@ class LlvmIrParser(RecursiveDescentParser):
         self.context = context
         self._pfs = None
         self.module = None
-        self.numbered_vals = []
+        # Counter to form implicit names.
+        self.numbered_val = 0
+
+    # LLVM IR has a habbit of using implicit names in various places, from
+    # function params to block labels. In this case, a "numbered name" is
+    # used.
+    def get_implicit_name(self):
+        name = "%{}".format(self.numbered_val)
+        self.numbered_val += 1
+        return name
 
     def parse_module(self):
         """ Parse a module """
@@ -118,10 +127,8 @@ class LlvmIrParser(RecursiveDescentParser):
             if arg_info.name:
                 argument.set_name(arg_info.name)
             else:
-                # The parameter had no name, so number it?
-                name = "%{}".format(len(self.numbered_vals))
+                name = self.get_implicit_name()
                 argument.set_name(name)
-                self.numbered_vals.append((name, argument))
         return function
 
     def parse_target_definition(self):
@@ -238,7 +245,7 @@ class LlvmIrParser(RecursiveDescentParser):
         if self.peek == "LBL":
             label = self.consume("LBL").val
         else:
-            label = None
+            label = self.get_implicit_name()
         bb = self._pfs.define_bb(label)
 
         # Parse instructions until terminator
