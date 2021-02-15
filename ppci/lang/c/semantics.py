@@ -25,6 +25,37 @@ from .scope import Scope, RootScope
 from .printer import expr_to_str, type_to_str
 
 
+class CSwitch:
+    """ Switch instruction context """
+    def __init__(self, typ):
+        self.typ = typ
+        self.default_seen = False
+        self.values = []
+        self.ranges = []
+
+    def add_value(self, val):
+        """ Add a case value, returns True if OK, False otherwise """
+        for low, high in self.ranges:
+            if val >= low and val <= high:
+                return False
+        for value in self.values:
+            if val == value:
+                return False
+        self.values.append(val)
+        return True
+
+    def add_range(self, val1, val2):
+        """ Add a case range, returns True if OK, False otherwise """
+        for low, high in self.ranges:
+            if (val1 >= low and val1 <= high) or (val2 >= low and val2 <= high):
+                return False
+        for value in self.values:
+            if value >= val1 and value <= val2:
+                return False
+        self.ranges.append((val1, val2))
+        return True
+        
+
 class CSemantics:
     """ This class handles the C semantics """
 
@@ -542,7 +573,10 @@ class CSemantics:
         return statements.If(condition, then_statement, no, location)
 
     def on_switch_enter(self, expression):
-        self.switch_stack.append(expression.typ)
+        self.ensure_integer(expression)
+        prom_expression = self.promote(expression)
+        self.switch_stack.append(CSwitch(prom_expression.typ))
+        return prom_expression
 
     def on_switch_exit(self, expression, statement, location):
         """ Handle switch statement """
@@ -555,19 +589,35 @@ class CSemantics:
             self.error("Case statement outside of a switch!", location)
 
         if isinstance(value, tuple):
+            # case value1 ... value2:
             value1, value2 = value
-            value1 = self.coerce(value1, self.switch_stack[-1])
-            value2 = self.coerce(value2, self.switch_stack[-1])
+            self.ensure_integer(value1)
+            self.ensure_integer(value2)
+            value1 = self.promote(value1)
+            value2 = self.promote(value2)
+            v1 = self.context.eval_expr(value1)
+            v2 = self.context.eval_expr(value2)
+            if v1 > v2:
+                self.error("Inconsistent case range", location)
+            if not self.switch_stack[-1].add_range(v1, v2):
+                self.error("Case range conflicts with previous cases", location)
             return statements.RangeCase(value1, value2, statement, location)
         else:
-            value = self.coerce(value, self.switch_stack[-1])
+            # case value:
+            self.ensure_integer(value)
+            value = self.promote(value)
+            v = self.context.eval_expr(value)
+            if not self.switch_stack[-1].add_value(v):
+                self.error("Case value conflicts with previous cases", location)
             return statements.Case(value, statement, location)
 
     def on_default(self, statement, location):
         """ Handle a default label """
         if not self.switch_stack:
             self.error("Default statement outside of a switch!", location)
-
+        if self.switch_stack[-1].default_seen:
+            self.error("Duplicate default statement in current switch", location)
+        self.switch_stack[-1].default_seen = True
         return statements.Default(statement, location)
 
     def on_while(self, condition, body, location):

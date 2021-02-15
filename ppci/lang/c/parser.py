@@ -875,9 +875,10 @@ class CParser(RecursiveDescentParser):
         self.consume("(")
         expression = self.parse_expression()
         self.consume(")")
-        self.semantics.on_switch_enter(expression)
+        # expression type can be changed by integer promotion
+        prom_expression = self.semantics.on_switch_enter(expression)
         statement = self.parse_statement()
-        return self.semantics.on_switch_exit(expression, statement, location)
+        return self.semantics.on_switch_exit(prom_expression, statement, location)
 
     def parse_case_statement(self):
         """Parse a case.
@@ -890,11 +891,11 @@ class CParser(RecursiveDescentParser):
         'case 5 ... 10:'
         """
         location = self.consume("case").loc
-        value = self.parse_expression()
+        value = self.parse_constant_expression()
         if self.peek == "...":
             # gnu extension!
             self.consume("...")
-            value2 = self.parse_expression()
+            value2 = self.parse_constant_expression()
             value = (value, value2)
 
         self.consume(":")
