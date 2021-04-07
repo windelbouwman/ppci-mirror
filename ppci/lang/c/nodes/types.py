@@ -216,6 +216,18 @@ class ArrayType(IndexableType):
         """ Decay into pointer type. """
         return PointerType(self.element_type)
 
+    @property
+    def incomplete(self):
+        """ Test if this type is incomplete """
+        if self.size is None:
+          return True
+        return self.element_type.is_compound and self.element_type.incomplete
+
+    @property
+    def complete(self):
+        """ Test if this type is complete """
+        return not self.incomplete
+
 
 class PointerType(IndexableType):
     """ The famous pointer! """

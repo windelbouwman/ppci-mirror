@@ -484,13 +484,21 @@ class CParser(RecursiveDescentParser):
             declarator.type_modifiers,
             declarator.location,
         )
-
         self.semantics.register_declaration(variable)
 
         # Handle the initial value:
         if self.has_consumed("="):
             initializer = self.parse_initializer(variable.typ)
             self.semantics.on_variable_initialization(variable, initializer)
+
+        # Ensure that the variable type is complete
+        # TODO to avoid an error when computing the variable size in IR
+        # generation, we should detect there all type incompleteness
+        # struct/union, component type of arrays, etc.
+        if variable.typ.is_compound and variable.typ.incomplete:
+            self.error(
+                "Type of variable '{}' is incomplete".format(declarator.name),
+                declarator.location)
 
     def parse_typedef(self, decl_spec, declarator):
         """ Process typedefs """

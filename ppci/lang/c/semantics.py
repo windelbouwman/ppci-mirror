@@ -174,19 +174,30 @@ class CSemantics:
         if self.scope.is_definition(variable.name):
             self.error("Invalid redefinition.", variable.location)
 
-        self.patch_size_from_initializer(variable.typ, expression)
+        variable.typ = self.patch_size_from_initializer(
+            variable.typ,
+            expression
+        )
         variable.initial_value = expression
 
     def patch_size_from_initializer(self, typ, initializer):
-        """ Fill array size from elements! """
-
+        """ Fill array type size from elements if the type size is unknown.
+            Return a new type if modified 
+        """
         if typ.is_array and typ.size is None:
             if isinstance(initializer, expressions.ArrayInitializer):
-                typ.size = len(initializer.values)
+                new_type = types.ArrayType(
+                    typ.element_type,
+                    len(initializer.values)
+                ) 
+                initializer.typ = new_type
+                return new_type
             else:  # pragma: no cover
                 raise NotImplementedError(
                     "What else could be used to init an array?"
                 )
+        else:
+            return typ
 
     def new_init_cursor(self):
         return init.InitCursor(self.context)
